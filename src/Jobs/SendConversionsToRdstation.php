@@ -38,7 +38,7 @@ class SendConversionsToRdstation implements ShouldQueue
                 'token_rdstation' => config('laravel-rdstation.public_key'),
             ] + $this->data;
 
-        $client->request('POST', config('laravel-rdstation.url'), [
+        $client->request('POST', 'https://www.rdstation.com.br/api/1.2/conversions', [
             'form_params' => $formParams,
         ]);
     }
