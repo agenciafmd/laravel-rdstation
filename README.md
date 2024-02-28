@@ -164,11 +164,19 @@ SendConversionsToRdstationV2::dispatch($data + [
         'mobile_phone' => $data['phone'],
         'cf_assunto_de_interesse' => 'assunto',
         'cf_empreendimento' => 'nome-do-empreendimento',
+        'cf_utm_campaign' => Cookie::get('utm_campaign', ''),
+        'cf_utm_content' => Cookie::get('utm_content', ''),
+        'cf_utm_medium' => Cookie::get('utm_medium', ''),
+        'cf_utm_source' => Cookie::get('utm_source', ''),
+        'gclid_' => Cookie::get('gclid', ''),
+        'cid' => Cookie::get('cid', ''),
+        // seria legal matar esses campos
         'traffic_source' => Cookie::get('utm_source', ''),
         'traffic_medium' => Cookie::get('utm_medium', ''),
         'traffic_campaign' => Cookie::get('utm_campaign', ''),
-        'traffic_value' => Cookie::get('utm_term', ''),
+        'traffic_value' => Cookie::get('utm_content', ''),
         'client_tracking_id' => Cookie::get('cid', '') . '|' . Cookie::get('gclid', ''),
+        // fim do seria legal matar esses campos
     ])
     ->delay(5)
     ->onQueue('low');
