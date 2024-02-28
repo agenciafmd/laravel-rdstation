@@ -161,15 +161,14 @@ $data['nome'] = 'Irineu Junior';
 
 SendConversionsToRdstationV2::dispatch($data + [
         'conversion_identifier' => 'seja-um-parceiro',
+        'mobile_phone' => $data['phone'],
         'cf_assunto_de_interesse' => 'assunto',
         'cf_empreendimento' => 'nome-do-empreendimento',
-        'utm_campaign' => Cookie::get('utm_campaign', ''),
-        'utm_content' => Cookie::get('utm_content', ''),
-        'utm_medium' => Cookie::get('utm_medium', ''),
-        'utm_source' => Cookie::get('utm_source', ''),
-        'utm_term' => Cookie::get('utm_term', ''),
-        'gclid_' => Cookie::get('gclid', ''),
-        'cid' => Cookie::get('cid', ''),
+        'traffic_source' => Cookie::get('utm_source', ''),
+        'traffic_medium' => Cookie::get('utm_medium', ''),
+        'traffic_campaign' => Cookie::get('utm_campaign', ''),
+        'traffic_value' => Cookie::get('utm_term', ''),
+        'client_tracking_id' => Cookie::get('cid', '') . '|' . Cookie::get('gclid', ''),
     ])
     ->delay(5)
     ->onQueue('low');
