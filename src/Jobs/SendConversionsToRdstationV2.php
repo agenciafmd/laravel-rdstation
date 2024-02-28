@@ -42,11 +42,7 @@ class SendConversionsToRdstationV2 implements ShouldQueue
             return;
         }
 
-        $response = $this->sendConversion($this->data);
-
-        if ($response->getStatusCode() !== 200) {
-            // enviar email pra alguem dizendo que não deu certo e com o payload que foi enviado e o response
-        }
+        $this->sendConversion($this->data);
     }
 
     private function loadHttpClient(): void
@@ -102,5 +98,9 @@ class SendConversionsToRdstationV2 implements ShouldQueue
                 'payload' => $data,
             ],
         ]);
+
+        if ($response->getStatusCode() !== 200) {
+            // enviar email pra alguem dizendo que não deu certo e com o payload que foi enviado e o response
+        }
     }
 }
