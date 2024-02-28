@@ -69,7 +69,7 @@ class SendConversionsToRdstationV2 implements ShouldQueue
 
     private function accessToken(): string
     {
-        return Cache::remember('api-token', now()->addMinutes(60), function () {
+        return Cache::remember('api-token', now()->addMinutes(40), function () {
             $response = $this->api->post('https://api.rd.services/auth/token', [
                 'json' => [
                     'client_id' => config('laravel-rdstation.client_id'),
