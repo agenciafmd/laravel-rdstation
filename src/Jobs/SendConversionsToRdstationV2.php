@@ -10,9 +10,11 @@ use GuzzleHttp\Middleware;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Mail\Message;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
@@ -99,8 +101,11 @@ class SendConversionsToRdstationV2 implements ShouldQueue
             ],
         ]);
 
-        if ($response->getStatusCode() !== 200) {
-            // enviar email pra alguem dizendo que não deu certo e com o payload que foi enviado e o response
+        if (($response->getStatusCode() !== 200) && (config('laravel-rdstation.error_email'))) {
+            Mail::raw($response->getBody(), function (Message $message) {
+                $message->to(config('laravel-rdstation.error_email'))
+                    ->subject('[RDStation][' . config('app.url') . '] - Falha na integração - ' . now()->format('d/m/Y H:i:s'));
+            });
         }
     }
 }
