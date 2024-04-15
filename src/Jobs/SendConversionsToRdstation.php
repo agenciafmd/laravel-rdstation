@@ -9,9 +9,11 @@ use GuzzleHttp\Middleware;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Mail\Message;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Mail;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
@@ -38,9 +40,16 @@ class SendConversionsToRdstation implements ShouldQueue
                 'token_rdstation' => config('laravel-rdstation.public_key'),
             ] + $this->data;
 
-        $client->request('POST', 'https://www.rdstation.com.br/api/1.2/conversions', [
+        $response = $client->request('POST', 'https://www.rdstation.com.br/api/1.2/conversions', [
             'form_params' => $formParams,
         ]);
+
+        if (($response->getStatusCode() !== 200) && (config('laravel-rdstation.error_email'))) {
+            Mail::raw($response->getBody(), function (Message $message) {
+                $message->to(config('laravel-rdstation.error_email'))
+                    ->subject('[RDStation][' . config('app.url') . '] - Falha na integração - ' . now()->format('d/m/Y H:i:s'));
+            });
+        }
     }
 
     private function getClientRequest()
