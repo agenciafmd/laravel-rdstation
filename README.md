@@ -11,7 +11,7 @@
 composer require agenciafmd/laravel-rdstation:dev-master
 ```
 
-## Configuração V2
+## Configuração V1
 
 Para que a integração seja realizada, precisamos do **token público**
 
