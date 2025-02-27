@@ -8,7 +8,7 @@
 ## Instalação
 
 ```bash
-composer require agenciafmd/laravel-rdstation:dev-master
+composer require agenciafmd/laravel-rdstation:v11.x-dev
 ```
 
 ## Configuração V1
@@ -17,11 +17,11 @@ Para que a integração seja realizada, precisamos do **token público**
 
 Para isso, vamos em **Perfil > Integrações**
 
-![Perfil > Integrações](https://github.com/agenciafmd/laravel-rdstation/raw/master/docs/screenshot01.jpg "Perfil > Integrações")
+![Perfil > Integrações](https://github.com/agenciafmd/laravel-rdstation/raw/v11/docs/screenshot01.jpg "Perfil > Integrações")
 
 Agora, vamos em **Dados da Integração > Token Público**
 
-![Dados da Integração > Token Público](https://github.com/agenciafmd/laravel-rdstation/raw/master/docs/screenshot02.jpg "Dados da Integração > Token Público")
+![Dados da Integração > Token Público](https://github.com/agenciafmd/laravel-rdstation/raw/v11/docs/screenshot02.jpg "Dados da Integração > Token Público")
 
 Colocamos esta chave no nosso .env
 
