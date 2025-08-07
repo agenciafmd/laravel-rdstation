@@ -65,17 +65,15 @@ Antes de começarmos, é preciso solicitar a criação de uma conta para o desen
 
 Com a conta criada, vamos criar o **aplicativo**
 
-Vá em https://developers.rdstation.com/
+Vá em https://appstore.rdstation.com/
 
-Faça seu login e escolha o cliente (caso possua mais de um) e clique em **Acessar RD Station Marketing**
-
-![docs/acessar-rd-station-marketing.png](docs/acessar-rd-station-marketing.png)
-
-No menu **Produtos**, clique em **RD Station App Store**
+Agora, vamos em **Integrações** > **Quero criar um app para uso privado**
 
 ![docs/acessar-rd-station-app-store.png](docs/acessar-rd-station-app-store.png)
 
-Agora, vamos em **Meus Apps** > **Criar um aplicativo**
+Vá em **Meus Apps** > **Criar um aplicativo**
+
+![docs/meus-apps-criar-aplicativo.png](docs/meus-apps-criar-aplicativo.png)
 
 Escolhemos um nome bem intuitivo e clicamos em **Criar App**
 
