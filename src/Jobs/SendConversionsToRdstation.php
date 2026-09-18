@@ -4,29 +4,33 @@ declare(strict_types=1);
 
 namespace Agenciafmd\Rdstation\Jobs;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\MessageFormatter;
-use GuzzleHttp\Middleware;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Mail\Message;
+use Illuminate\Queue\Attributes\Backoff;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Monolog\Handler\StreamHandler;
-use Monolog\Logger;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
+#[Backoff([10, 30, 60])]
+#[Tries(4)]
 final class SendConversionsToRdstation implements ShouldQueue
 {
     use Queueable;
 
-    private Client $api;
+    private ?LoggerInterface $logger = null;
 
     /**
      * @param  array<string, mixed>  $data
      */
-    public function __construct(private array $data = []) {}
+    public function __construct(private readonly array $data = []) {}
 
     public function handle(): void
     {
@@ -34,55 +38,38 @@ final class SendConversionsToRdstation implements ShouldQueue
             return;
         }
 
-        $this->loadHttpClient();
         $accessToken = $this->accessToken();
 
-        if (! $accessToken) {
+        if ($accessToken === '') {
             return;
         }
 
-        $this->sendConversion($this->data);
+        $this->sendConversion($accessToken, $this->data);
     }
 
-    private function loadHttpClient(): void
+    public function failed(?Throwable $exception): void
     {
-        $logger = new Logger('Rdstation');
-        $logger->pushHandler(new StreamHandler(storage_path('logs/rdstation-' . date('Y-m-d') . '.log')));
-
-        $stack = HandlerStack::create();
-        $stack->push(
-            Middleware::log(
-                $logger,
-                new MessageFormatter('{method} {uri} HTTP/{version} {req_body} | RESPONSE: {code} - {res_body}')
-            )
-        );
-
-        $this->api = new Client([
-            'timeout' => 60,
-            'connect_timeout' => 60,
-            'http_errors' => false,
-            'verify' => false,
-            'handler' => $stack,
+        $this->logger()->error('[RDStation] job failed permanently', [
+            'exception' => $exception,
         ]);
+
+        $this->notifyFailure($exception?->getMessage() ?? 'Job failed after all retry attempts.');
     }
 
     private function accessToken(): string
     {
-        return Cache::remember('api-token', now()->addMinutes(40), function (): string {
-            $response = $this->api->post('https://api.rd.services/auth/token', [
-                'json' => [
-                    'client_id' => config('laravel-rdstation.client_id'),
-                    'client_secret' => config('laravel-rdstation.client_secret'),
-                    'refresh_token' => config('laravel-rdstation.refresh_token'),
-                ],
+        return Cache::remember('rdstation-api-token', now()->addMinutes(40), function (): string {
+            $response = $this->httpClient()->post('https://api.rd.services/auth/token', [
+                'client_id' => config('laravel-rdstation.client_id'),
+                'client_secret' => config('laravel-rdstation.client_secret'),
+                'refresh_token' => config('laravel-rdstation.refresh_token'),
             ]);
 
-            if ($response->getStatusCode() !== 200) {
+            if ($response->failed()) {
                 return '';
             }
 
-            $body = json_decode((string) $response->getBody(), true);
-            $accessToken = is_array($body) ? ($body['access_token'] ?? null) : null;
+            $accessToken = $response->json('access_token');
 
             return is_string($accessToken) ? $accessToken : '';
         });
@@ -90,31 +77,62 @@ final class SendConversionsToRdstation implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $data
-     *
-     * @throws GuzzleException
      */
-    private function sendConversion(array $data = []): void
+    private function sendConversion(string $accessToken, array $data): void
     {
-        $response = $this->api->post('https://api.rd.services/platform/events?event_type=conversion', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->accessToken(),
-            ],
-            'json' => [
+        $response = $this->httpClient()
+            ->withToken($accessToken)
+            ->post('https://api.rd.services/platform/events?event_type=conversion', [
                 'event_type' => 'CONVERSION',
                 'event_family' => 'CDP',
                 'payload' => $data,
-            ],
-        ]);
+            ]);
 
+        if ($response->successful()) {
+            return;
+        }
+
+        $this->notifyFailure($response->body());
+    }
+
+    private function notifyFailure(string $reason): void
+    {
         $errorEmail = config('laravel-rdstation.error_email');
+
+        if (! is_string($errorEmail) || $errorEmail === '') {
+            return;
+        }
+
         $appUrl = config('app.url');
         $appUrl = is_string($appUrl) ? $appUrl : '';
 
-        if (($response->getStatusCode() !== 200) && is_string($errorEmail) && $errorEmail !== '') {
-            Mail::raw((string) $response->getBody(), function (Message $message) use ($errorEmail, $appUrl): void {
-                $message->to($errorEmail)
-                    ->subject('[RDStation][' . $appUrl . '] - Falha na integração - ' . now()->format('d/m/Y H:i:s'));
+        Mail::raw($reason, function (Message $message) use ($errorEmail, $appUrl): void {
+            $message->to($errorEmail)
+                ->subject('[RDStation][' . $appUrl . '] - Falha na integração - ' . now()->format('d/m/Y H:i:s'));
+        });
+    }
+
+    private function httpClient(): PendingRequest
+    {
+        return Http::connectTimeout(10)
+            ->timeout(30)
+            ->withRequestMiddleware(function (RequestInterface $request): RequestInterface {
+                $this->logger()->info(sprintf('%s %s', $request->getMethod(), $request->getUri()));
+
+                return $request;
+            })
+            ->withResponseMiddleware(function (ResponseInterface $response): ResponseInterface {
+                $this->logger()->info('RESPONSE: ' . $response->getStatusCode());
+
+                return $response;
             });
-        }
+    }
+
+    private function logger(): LoggerInterface
+    {
+        return $this->logger ??= Log::build([
+            'driver' => 'single',
+            'path' => storage_path('logs/rdstation-' . now()->format('Y-m-d') . '.log'),
+        ]);
     }
 }
