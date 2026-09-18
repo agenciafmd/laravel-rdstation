@@ -1,22 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Agenciafmd\Rdstation\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
-class RdstationServiceProvider extends ServiceProvider
+final class RdstationServiceProvider extends ServiceProvider
 {
-    public function boot()
+    public function boot(): void
     {
-        // 
+        //
     }
 
-    public function register()
+    public function register(): void
     {
         $this->loadConfigs();
     }
 
-    protected function loadConfigs()
+    protected function loadConfigs(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/laravel-rdstation.php', 'laravel-rdstation');
     }

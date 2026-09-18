@@ -8,58 +8,10 @@
 ## Instalação
 
 ```bash
-composer require agenciafmd/laravel-rdstation:v11.x-dev
+composer require agenciafmd/laravel-rdstation:dev-master
 ```
 
-## Configuração V1
-
-Para que a integração seja realizada, precisamos do **token público**
-
-Para isso, vamos em **Perfil > Integrações**
-
-![Perfil > Integrações](https://github.com/agenciafmd/laravel-rdstation/raw/v11/docs/screenshot01.jpg "Perfil > Integrações")
-
-Agora, vamos em **Dados da Integração > Token Público**
-
-![Dados da Integração > Token Público](https://github.com/agenciafmd/laravel-rdstation/raw/v11/docs/screenshot02.jpg "Dados da Integração > Token Público")
-
-Colocamos esta chave no nosso .env
-
-```dotenv
-RDSTATION_PUBLIC_KEY=VYfa6Oo1oaCIeQ68Ase9dSOBPdgRvWtJ
-```
-
-## Uso
-
-Envie os campos no formato de array para o SendConversionsToRdstation.
-
-O campo **email** é obrigatório =)
-
-Para que o processo funcione pelos **jobs**, é preciso passar os valores dos cookies conforme mostrado abaixo.
-
-```php
-use Agenciafmd\Rdstation\Jobs\SendConversionsToRdstation;
-
-$data['email'] = 'irineu@fmd.ag';
-$data['nome'] = 'Irineu Junior';
-
-SendConversionsToRdstation::dispatch($data + [
-        'identificador' => 'seja-um-parceiro',
-        'utm_campaign' => Cookie::get('utm_campaign', ''),
-        'utm_content' => Cookie::get('utm_content', ''),
-        'utm_medium' => Cookie::get('utm_medium', ''),
-        'utm_source' => Cookie::get('utm_source', ''),
-        'utm_term' => Cookie::get('utm_term', ''),
-        'gclid_' => Cookie::get('gclid', ''),
-        'cid' => Cookie::get('cid', ''),
-    ])
-    ->delay(5)
-    ->onQueue('low');
-```
-
-----
-
-## Configuração V2
+## Configuração
 
 Antes de começarmos, é preciso solicitar a criação de uma conta para o desenvolvedor responsável na RD Station.
 
@@ -97,7 +49,7 @@ Para conseguirmos o code, vamos trocar o **client_id** e o **redirect_uri** com 
 https://api.rd.services/auth/dialog?client_id=client_id&redirect_uri=redirect_uri&state=
 ```
 
-Se tudo correr bem, seremos redirecionado para a url de callback que inserimos no nosso app.
+Se tudo correr bem, seremos redirecionados para a url de callback que inserimos no nosso app.
 
 Vamos agora, copiar o **code** da url.
 
@@ -143,16 +95,16 @@ RDSTATION_REFRESH_TOKEN=1-WX7PR4V5cvSaX9K-9qvcCQm8fPOkhWSM5i6fuTkYY
 
 ## Uso
 
-Envie os campos no formato de array para o SendConversionsToRdstationV2.
+Envie os campos no formato de array para o SendConversionsToRdstation.
 
-O campo **email** é obrigatório =)
+> O campo **email** é obrigatório
 
 Para que o processo funcione pelos **jobs**, é preciso passar os valores dos cookies conforme mostrado abaixo.
 
 > Note que os campos **cf_assunto_de_interesse** e **cf_empreendimento** são campos customizados que criamos no RD Station e podem variar de acordo com cada cliente.
 
 ```php
-use Agenciafmd\Rdstation\Jobs\SendConversionsToRdstationV2;
+use Agenciafmd\Rdstation\Jobs\SendConversionsToRdstation;
 
 $data['email'] = 'irineu@fmd.ag';
 $data['nome'] = 'Irineu Junior';
@@ -168,18 +120,10 @@ SendConversionsToRdstationV2::dispatch($data + [
         'cf_utm_source' => Cookie::get('utm_source', ''),
         'gclid_' => Cookie::get('gclid', ''),
         'cid' => Cookie::get('cid', ''),
-        // seria legal matar esses campos
-        'traffic_source' => Cookie::get('utm_source', ''),
-        'traffic_medium' => Cookie::get('utm_medium', ''),
-        'traffic_campaign' => Cookie::get('utm_campaign', ''),
-        'traffic_value' => Cookie::get('utm_content', ''),
-        'client_tracking_id' => Cookie::get('cid', '') . '|' . Cookie::get('gclid', ''),
-        // fim do seria legal matar esses campos
     ])
     ->delay(5)
     ->onQueue('low');
 ```
-
 
 ## Queue
 
