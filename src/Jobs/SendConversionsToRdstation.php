@@ -21,12 +21,12 @@ final class SendConversionsToRdstation implements ShouldQueue
 {
     use Queueable;
 
-    protected Client $api;
+    private Client $api;
 
     /**
      * @param  array<string, mixed>  $data
      */
-    public function __construct(protected array $data = []) {}
+    public function __construct(private array $data = []) {}
 
     public function handle(): void
     {
@@ -89,7 +89,8 @@ final class SendConversionsToRdstation implements ShouldQueue
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
+     *
      * @throws GuzzleException
      */
     private function sendConversion(array $data = []): void
