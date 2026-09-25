@@ -20,6 +20,6 @@ final class RdstationServiceProvider extends ServiceProvider
 
     private function loadConfigs(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/laravel-rdstation.php', 'laravel-rdstation');
+        $this->mergeConfigFrom(__DIR__ . '/../../config/laravel-rdstation.php', 'laravel-rdstation');
     }
 }
