@@ -1,9 +1,14 @@
-## Laravel - RD Station
+# Laravel – RD Station
 
 [![Downloads](https://img.shields.io/packagist/dt/agenciafmd/laravel-rdstation.svg?style=flat-square)](https://packagist.org/packages/agenciafmd/laravel-rdstation)
 [![Licença](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 
-- Envia as conversões para o RD Station
+Envia conversões para a RD Station através de um job em fila, cuidando da renovação do `access_token`, dos retries, do log das requisições e do aviso por e-mail em caso de falha.
+
+## Requisitos
+
+- PHP ^8.4
+- Laravel 13.*
 
 ## Instalação
 
@@ -11,11 +16,35 @@
 composer require agenciafmd/laravel-rdstation:dev-master
 ```
 
+O service provider é registrado automaticamente (package discovery).
+
 ## Configuração
+
+### Variáveis de ambiente
+
+```dotenv
+RDSTATION_CLIENT_ID=
+RDSTATION_CLIENT_SECRET=
+RDSTATION_REFRESH_TOKEN=
+RDSTATION_ERROR_EMAIL=
+```
+
+| Variável | Descrição |
+|---|---|
+| `RDSTATION_CLIENT_ID` | Client ID do aplicativo criado na RD Station App Store |
+| `RDSTATION_CLIENT_SECRET` | Client Secret do aplicativo |
+| `RDSTATION_REFRESH_TOKEN` | Refresh token usado para gerar o `access_token` |
+| `RDSTATION_ERROR_EMAIL` | (Opcional) e-mail que recebe o aviso quando a integração falha |
+
+> Se `client_id`, `client_secret` ou `refresh_token` estiverem vazios, o job termina sem enviar nada.
+
+Os valores são lidos de `config('laravel-rdstation.*')`. O pacote não publica o arquivo de configuração; use apenas o `.env`.
+
+### Gerando as credenciais
 
 Antes de começarmos, é preciso solicitar a criação de uma conta para o desenvolvedor responsável na RD Station.
 
-Com a conta criada, vamos criar o **aplicativo**
+Com a conta criada, vamos criar o **aplicativo**.
 
 Vá em https://appstore.rdstation.com/
 
@@ -35,29 +64,29 @@ Agora é só seguir os passos.
 
 > Atenção para a URL de redirecionamento, ela é importante para a autenticação.
 
-É a partir dela, que vamos conseguir recuperar o **code**
+É a partir dela que vamos conseguir recuperar o **code**.
 
 ![docs/criar-app-redirect.png](docs/criar-app-redirect.png)
 
-Após a criação, copiamos o **Client ID** e o **Client Secret**
+Após a criação, copiamos o **Client ID** e o **Client Secret**.
 
 ![docs/client-secret-callback.png](docs/client-secret-callback.png)
 
 Para conseguirmos o code, vamos trocar o **client_id** e o **redirect_uri** com os dados que recuperamos do nosso app.
 
-```
+```text
 https://api.rd.services/auth/dialog?client_id=client_id&redirect_uri=redirect_uri&state=
 ```
 
-Se tudo correr bem, seremos redirecionados para a url de callback que inserimos no nosso app.
+Se tudo correr bem, seremos redirecionados para a URL de callback que inserimos no nosso app.
 
-Vamos agora, copiar o **code** da url.
+Vamos agora copiar o **code** da URL.
 
 ![docs/code.png](docs/code.png)
 
 Agora vamos recuperar o **access_token** e o **refresh_token**.
 
-Para isso, vamos fazer uma requisição **POST** para o endpoint **/auth/token?token_by=code**
+Para isso, vamos fazer uma requisição **POST** para o endpoint **/auth/token?token_by=code**.
 
 No exemplo abaixo, vamos trocar o **client_id**, **client_secret** e **code** pelos valores que recuperamos do nosso app.
 
@@ -75,7 +104,7 @@ curl --request POST \
 '
 ```
 
-Algo muito semelhante a isso será retornado (note que comemos um bom pedaço dos dados).
+Algo muito semelhante a isso será retornado (note que omitimos um bom pedaço dos dados).
 
 ```json
 {
@@ -85,7 +114,7 @@ Algo muito semelhante a isso será retornado (note que comemos um bom pedaço do
 }
 ```
 
-Agora tem conseguimos todos os dados necessários para a configuração.
+Agora temos todos os dados necessários para a configuração.
 
 ```dotenv
 RDSTATION_CLIENT_ID=71d41aa9-5967-4820-aad1-9da1e753d2d1
@@ -95,21 +124,23 @@ RDSTATION_REFRESH_TOKEN=1-WX7PR4V5cvSaX9K-9qvcCQm8fPOkhWSM5i6fuTkYY
 
 ## Uso
 
-Envie os campos no formato de array para o SendConversionsToRdstation.
+Envie os campos no formato de array para o job `SendConversionsToRdstation`. O array é enviado como `payload` de um evento `CONVERSION` (`event_family: CDP`) em `https://api.rd.services/platform/events`.
 
-> O campo **email** é obrigatório
+> O campo **email** é obrigatório.
 
-Para que o processo funcione pelos **jobs**, é preciso passar os valores dos cookies conforme mostrado abaixo.
+Como o envio acontece em fila, os valores dos cookies (UTMs, gclid etc.) precisam ser lidos no momento da requisição e passados para o job, conforme o exemplo abaixo.
 
-> Note que os campos **cf_assunto_de_interesse** e **cf_empreendimento** são campos customizados que criamos no RD Station e podem variar de acordo com cada cliente.
+> Os campos **cf_assunto_de_interesse** e **cf_empreendimento** são campos customizados criados na RD Station e podem variar de acordo com cada cliente.
 
 ```php
 use Agenciafmd\Rdstation\Jobs\SendConversionsToRdstation;
+use Illuminate\Support\Facades\Cookie;
 
 $data['email'] = 'irineu@fmd.ag';
-$data['nome'] = 'Irineu Junior';
+$data['name'] = 'Irineu Junior';
+$data['phone'] = '(17) 99999-9999';
 
-SendConversionsToRdstationV2::dispatch($data + [
+SendConversionsToRdstation::dispatch($data + [
         'conversion_identifier' => 'seja-um-parceiro',
         'mobile_phone' => $data['phone'],
         'cf_assunto_de_interesse' => 'assunto',
@@ -125,12 +156,23 @@ SendConversionsToRdstationV2::dispatch($data + [
     ->onQueue('low');
 ```
 
-## Queue
+### Comportamento do job
 
-Note que nos nossos exemplos, enviamos o job para a fila **low**.
+- O `access_token` é obtido a partir do `refresh_token` e fica em cache (`rdstation-api-token`) por 40 minutos.
+- Até 4 tentativas, com backoff de 10, 30 e 60 segundos.
+- Cada requisição e o status da resposta são registrados em `storage/logs/rdstation-YYYY-MM-DD.log`.
+- Se a RD Station recusar a conversão, ou o job falhar em todas as tentativas, um e-mail com o motivo é enviado para `RDSTATION_ERROR_EMAIL` (quando preenchido).
 
-Certifique-se de estar rodando no seu queue:work esteja semelhante ao abaixo.
+## Filas
+
+Nos exemplos, o job é enviado para a fila **low**.
+
+Certifique-se de que o seu `queue:work` esteja processando essa fila, algo semelhante ao abaixo.
 
 ```shell
 php artisan queue:work --tries=3 --delay=5 --timeout=60 --queue=high,default,low
 ```
+
+## Licença
+
+Este pacote é software livre e está disponível nos termos da licença MIT.
