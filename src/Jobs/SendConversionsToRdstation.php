@@ -10,9 +10,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Mail\Message;
 use Illuminate\Queue\Attributes\Backoff;
 use Illuminate\Queue\Attributes\Tries;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -58,7 +56,7 @@ final class SendConversionsToRdstation implements ShouldQueue
 
     private function accessToken(): string
     {
-        return Cache::remember('rdstation-api-token', now()->addMinutes(40), function (): string {
+        return cache()->remember('rdstation-api-token', now()->addMinutes(40), function (): string {
             $response = $this->httpClient()->post('https://api.rd.services/auth/token', [
                 'client_id' => config('laravel-rdstation.client_id'),
                 'client_secret' => config('laravel-rdstation.client_secret'),
@@ -130,7 +128,7 @@ final class SendConversionsToRdstation implements ShouldQueue
 
     private function logger(): LoggerInterface
     {
-        return $this->logger ??= Log::build([
+        return $this->logger ??= logger()->build([
             'driver' => 'single',
             'path' => storage_path('logs/rdstation-' . now()->format('Y-m-d') . '.log'),
         ]);
